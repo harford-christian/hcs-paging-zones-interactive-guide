@@ -1,0 +1,468 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<style>body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+<title>Paging Zone Tester</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: control rail (server + zone keypad) above a results board; area check strip, then hears / does-not-hear columns */
+:root{
+  --bg:#F3F5F8; --panel:#FFFFFF; --ink:#18212D; --muted:#5D6878; --line:#D9DEE6; --soft:#E9EDF3;
+  --accent:#2350C4; --accent-ink:#FFFFFF;
+  --hit:#17804F; --hit-bg:#E3F4EA; --miss:#8A94A3; --miss-bg:#EEF0F3;
+  --sos:#B8392A; --sos-bg:#FBE9E6; --rec:#9A6510; --rec-bg:#FBF0DA; --warn:#A35A00; --warn-bg:#FFF3DF;
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#10151C; --panel:#18202A; --ink:#E6EBF2; --muted:#9AA6B6; --line:#2C3644; --soft:#222B37;
+  --accent:#7C9DFF; --accent-ink:#0D1320;
+  --hit:#5FD39A; --hit-bg:#173327; --miss:#7E8999; --miss-bg:#1E2631;
+  --sos:#FF8A78; --sos-bg:#3A1F1B; --rec:#F2C26B; --rec-bg:#352A14; --warn:#F7B45A; --warn-bg:#352813;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10151C; --panel:#18202A; --ink:#E6EBF2; --muted:#9AA6B6; --line:#2C3644; --soft:#222B37;
+  --accent:#7C9DFF; --accent-ink:#0D1320;
+  --hit:#5FD39A; --hit-bg:#173327; --miss:#7E8999; --miss-bg:#1E2631;
+  --sos:#FF8A78; --sos-bg:#3A1F1B; --rec:#F2C26B; --rec-bg:#352A14; --warn:#F7B45A; --warn-bg:#352813;
+  color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:20px 48px;display:grid;gap:18px}
+header{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px 20px}
+h1{font-family:var(--f-display);font-weight:700;font-size:2rem;letter-spacing:.01em;margin:0;text-wrap:balance}
+.sub{color:var(--muted);margin:0;max-width:62ch}
+.label{font-size:.72rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:600}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
+.controls{display:grid;gap:16px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;flex-wrap:wrap}
+.seg button{font:inherit;font-size:.9rem;border:0;background:transparent;color:var(--ink);padding:8px 14px;cursor:pointer;border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);font-weight:600}
+.keypad{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:8px}
+.key{font:inherit;text-align:left;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;padding:8px 10px;cursor:pointer;display:grid;gap:2px;min-width:0}
+.key .n{font-family:var(--f-display);font-weight:700;font-size:1.6rem;line-height:1}
+.key .nm{font-size:.74rem;color:var(--muted);line-height:1.25}
+.key.sos .n{color:var(--sos)}
+.key.rec .n{color:var(--rec)}
+.key.dead{border-style:dashed}
+.key[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent) inset}
+.key:hover{background:var(--soft)}
+button:focus-visible,summary:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.other{display:flex;gap:8px;align-items:center}
+.other input{font:inherit;width:84px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink)}
+.groups-title{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+
+/* result header */
+.result{display:grid;grid-template-columns:auto 1fr;gap:6px 22px;align-items:center}
+.bigzone{font-family:var(--f-display);font-weight:700;font-size:4.4rem;line-height:.9;font-variant-numeric:tabular-nums}
+.rmeta{display:grid;gap:6px;min-width:0}
+.rname{font-family:var(--f-display);font-weight:600;font-size:1.6rem;line-height:1.1}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:.8rem;font-weight:600;border-radius:999px;padding:3px 10px;white-space:nowrap}
+.p-voice{background:var(--hit-bg);color:var(--hit)}
+.p-rec{background:var(--rec-bg);color:var(--rec)}
+.p-sos{background:var(--sos-bg);color:var(--sos)}
+.p-muted{background:var(--miss-bg);color:var(--muted)}
+.p-warn{background:var(--warn-bg);color:var(--warn)}
+.mono{font-family:var(--f-mono);font-size:.84rem}
+.stats{display:flex;flex-wrap:wrap;gap:10px 28px;grid-column:1/-1;padding-top:10px;border-top:1px solid var(--line);margin-top:6px}
+.stat b{font-family:var(--f-display);font-size:1.7rem;font-weight:700;font-variant-numeric:tabular-nums;margin-right:4px}
+.stat span{color:var(--muted);font-size:.86rem}
+
+/* area strip */
+.areas{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px}
+.area{border:1px solid var(--line);border-radius:8px;padding:9px 11px;display:grid;gap:3px;background:var(--panel);border-left-width:5px}
+.area.all{border-left-color:var(--hit)}
+.area.some{border-left-color:var(--warn)}
+.area.none{border-left-color:var(--line)}
+.area .an{font-weight:600;font-size:.9rem;line-height:1.2}
+.area .as{font-size:.8rem;color:var(--muted)}
+.area.all .as b{color:var(--hit)} .area.some .as b{color:var(--warn)}
+.area.focus{background:var(--soft)}
+.star{font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);font-weight:600}
+
+/* lists */
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media (max-width:820px){.cols{grid-template-columns:1fr}}
+.col{min-width:0;display:grid;gap:10px;align-content:start}
+.colhead{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.colhead h2{font-family:var(--f-display);font-weight:700;font-size:1.35rem;margin:0;display:flex;align-items:center;gap:8px}
+.dot{width:12px;height:12px;border-radius:50%;display:inline-block}
+.dot.h{background:var(--hit)} .dot.m{background:var(--miss)}
+.linkbtn{font:inherit;font-size:.82rem;background:none;border:0;color:var(--accent);cursor:pointer;padding:2px 4px}
+details.grp{background:var(--panel);border:1px solid var(--line);border-radius:8px}
+details.grp>summary{list-style:none;cursor:pointer;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+details.grp>summary::-webkit-details-marker{display:none}
+details.grp>summary .gt{font-weight:600}
+details.grp>summary .gc{font-size:.8rem;color:var(--muted);white-space:nowrap}
+details.grp>summary::before{content:"▸";color:var(--muted);margin-right:2px;transition:transform .15s}
+details.grp[open]>summary::before{transform:rotate(90deg)}
+details.grp>summary .gt{flex:1}
+.devs{border-top:1px solid var(--line);display:grid}
+details.dev{border-bottom:1px solid var(--soft)}
+details.dev:last-child{border-bottom:0}
+details.dev>summary{list-style:none;cursor:pointer;padding:8px 12px 8px 26px;display:flex;gap:10px;align-items:center;justify-content:space-between}
+details.dev>summary::-webkit-details-marker{display:none}
+.dn{min-width:0;display:grid}
+.dn .t{font-size:.9rem;font-weight:500;overflow-wrap:anywhere}
+.dn .s{font-size:.76rem;color:var(--muted)}
+.dbody{padding:4px 12px 12px 26px;display:grid;gap:8px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;font-size:.82rem}
+.kv dt{color:var(--muted)} .kv dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.zchips{display:flex;flex-wrap:wrap;gap:5px}
+.zc{font-family:var(--f-mono);font-size:.76rem;border:1px solid var(--line);border-radius:5px;padding:1px 6px;color:var(--muted);background:var(--bg)}
+.zc i{font-style:normal;font-family:var(--f-body);font-size:.68rem;margin-right:3px}
+.zc.on{border-color:var(--accent);background:var(--accent);color:var(--accent-ink)}
+.zc.sos{color:var(--sos)} .zc.on.sos{color:var(--accent-ink)}
+.empty{padding:14px;color:var(--muted);font-size:.9rem;background:var(--panel);border:1px dashed var(--line);border-radius:8px}
+.notes{display:grid;gap:8px}
+.note{display:flex;gap:10px;align-items:flex-start;font-size:.88rem;border-radius:8px;padding:10px 12px;background:var(--warn-bg);color:var(--ink)}
+.note b{color:var(--warn)}
+.tpl{border-collapse:collapse;width:100%;font-size:.84rem}
+.tpl th,.tpl td{text-align:left;padding:7px 12px;border-bottom:1px solid var(--soft);vertical-align:top}
+.tpl th{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.tpl td.n{font-variant-numeric:tabular-nums;color:var(--muted);white-space:nowrap}
+footer{font-size:.8rem;color:var(--muted);display:grid;gap:4px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Paging Zone Tester</h1>
+      <p class="sub">Pick a paging server and a zone to see exactly which speakers and phones should go off, and which should stay quiet.</p>
+    </div>
+    <span class="label">Verified Oct 11, 2026</span>
+  </header>
+
+  <section class="panel controls" aria-label="Choose server and zone">
+    <div class="row">
+      <span class="label" style="min-width:110px">Paging server</span>
+      <div class="seg" id="servers" role="group" aria-label="Paging server"></div>
+    </div>
+    <div class="groups-title">
+      <span class="label">Dial zone</span>
+      <div class="other"><label for="otherZone" class="label">Other zone</label><input id="otherZone" type="number" min="0" max="99" inputmode="numeric" placeholder="0–99"></div>
+    </div>
+    <div class="keypad" id="keypad"></div>
+  </section>
+
+  <section class="panel result" id="result" aria-live="polite"></section>
+
+  <section aria-label="Building check" style="display:grid;gap:8px">
+    <div class="groups-title"><span class="label">Building check</span><span class="label" style="text-transform:none;letter-spacing:0">Green = whole area hears it (or everything that should) · Amber = only part · Grey = none</span></div>
+    <div class="areas" id="areas"></div>
+  </section>
+
+  <section style="display:grid;gap:10px">
+    <div class="row" style="justify-content:space-between">
+      <div class="row"><span class="label" style="min-width:110px">Group devices by</span>
+        <div class="seg" id="viewSeg" role="group" aria-label="Group devices by">
+          <button type="button" data-v="area" aria-pressed="true">Building</button>
+          <button type="button" data-v="type" aria-pressed="false">Device type</button>
+        </div>
+      </div>
+      <div class="row">
+        <button class="linkbtn" type="button" id="expandAll">Expand everything</button>
+        <button class="linkbtn" type="button" id="collapseAll">Collapse everything</button>
+      </div>
+    </div>
+    <div class="cols">
+      <div class="col"><div class="colhead"><h2><span class="dot h"></span>Will hear this page</h2><span class="label" id="hitCount"></span></div><div id="hits"></div></div>
+      <div class="col"><div class="colhead"><h2><span class="dot m"></span>Will not hear it</h2><span class="label" id="missCount"></span></div><div id="misses"></div></div>
+    </div>
+  </section>
+
+  <section class="panel" aria-label="Phone templates" style="display:grid;gap:10px">
+    <details class="grp" id="tplRef"><summary><span class="gt">Phone template reference</span><span class="gc" id="tplCount"></span></summary>
+      <div style="overflow-x:auto;border-top:1px solid var(--line)"><table class="tpl" id="tplTable"></table></div>
+    </details>
+  </section>
+
+  <section class="notes" id="notes" aria-label="Known exceptions"></section>
+
+  <footer>
+    <div>All three paging servers carry identical zones, so a zone reaches the same devices no matter which server you dial it from.</div>
+    <div>Speaker config read from each Algo's Advanced Multicast page; phone list, registration status and template zones pulled live from the Yeastar P560 on Oct 11, 2026. Background music is separate from paging and not shown.</div>
+  </footer>
+</div>
+
+<script>
+// PUBLIC=true hides IP and multicast details (set by scripts/build_public.py for the GitHub Pages copy)
+const PUBLIC=true;
+const SERVERS=[
+  {id:"kg",label:"KG server",short:"",ip:""},
+  {id:"el",label:"EL server",short:"",ip:""},
+  {id:"hs",label:"HS server",short:"",ip:""}
+];
+const ZONES={
+  99:{n:"Campus SOS",k:"sos"},97:{n:"Indoor Campus SOS",k:"sos"},98:{n:"Secure Perimeter",k:"rec"},
+  94:{n:"HS SOS",k:"sos"},93:{n:"EL SOS",k:"sos"},92:{n:"KG SOS",k:"sos"},
+  20:{n:"KG Building (K4–5th)"},21:{n:"K4 & K5"},22:{n:"5th Grade"},
+  30:{n:"EL (1st–4th)"},31:{n:"1st–5th Grade"},32:{n:"HS, Mod & Band Room"},33:{n:"K4–6th Grade"},34:{n:"1st–6th Grade"},
+  40:{n:"HS & Mod"},41:{n:"HS, Mod & 6th"},42:{n:"HS, Mod & 6th – No Gym"},43:{n:"Gym"},
+  50:{n:"Mod"},60:{n:"6th Grade"},71:{n:"All Campus Outdoor"},
+  70:{n:"UNUSED – Campus Indoor",k:"dead"},38:{n:"Unnamed (EL band bells)",k:"dead"}
+};
+const KEY_ORDER=[99,97,98,94,93,92,20,21,22,30,31,33,34,40,41,42,43,32,50,60,71,38,70];
+
+const AREAS=[
+  {id:"kgup",n:"KG building · upstairs",d:"K4 & K5",focus:true},
+  {id:"kgdn",n:"KG building · basement",d:"5th Grade & Library",focus:true},
+  {id:"el",n:"Elementary",d:"1st–4th, office, RBC rooms",focus:true},
+  {id:"band",n:"Band Room",d:""},
+  {id:"mod1",n:"MOD1 · 6th Grade",d:"",focus:true},
+  {id:"mod2",n:"MOD2",d:"Computer lab & art"},
+  {id:"hs",n:"High School",d:""},
+  {id:"gym",n:"Gym & Eagles Nest",d:""},
+  {id:"out",n:"HS Gaga & outdoor",d:"Feeds outdoor horns"}
+];
+
+// Speakers: zones in Algo slot order (Priority, All Call, Zone 1, Zones 2-6)
+// Algo slot layout: Priority=99, All Call=97 (blank on Lobby/Gaga), Z1=98, Z2=building SOS, Z3-Z6 daily, *10 overflow
+const SPK=(ip,name,area,model,all,sos,d)=>{
+  const zones=[99],slots=["Priority"];
+  if(all){zones.push(97);slots.push("All Call")}
+  zones.push(98,sos);slots.push("Z1","Z2");
+  d.forEach((z,i)=>{zones.push(z);slots.push(i<4?"Z"+(i+3):"*10")});
+  return {kind:"Speaker",id:"spk"+ip,ip:PUBLIC?"":"",name,area,model,zones,slots,online:true,group:"Algo speakers"};
+};
+const SPEAKERS=[
+  SPK(20,"5th Grade speaker","kgdn","Algo 8198",1,92,[22,31,20,33,34]),
+  SPK(21,"KG speaker","kgup","Algo 8198",1,92,[20,21,33]),
+  SPK(30,"EL speaker 1","el","Algo 8198",1,93,[30,31,33,34]),
+  SPK(31,"EL speaker 2","el","Algo 8198",1,93,[30,31,33,34]),
+  SPK(33,"EL speaker 3","el","Algo 8198",1,93,[30,31,33,34]),
+  SPK(32,"Band Room speaker","band","Algo 8198",1,93,[32]),
+  SPK(40,"HS Lobby speaker","hs","Algo 8196",0,94,[40,41,42,32]),
+  SPK(41,"HS speaker 1","hs","Algo 8198",1,94,[40,41,42,32]),
+  SPK(42,"HS speaker 2","hs","Algo 8198",1,94,[40,41,42,32]),
+  SPK(45,"HS speaker 3","hs","Algo 8198",1,94,[40,41,42,32]),
+  SPK(46,"HS speaker 4","hs","Algo 8198",1,94,[40,41,42,32]),
+  SPK(43,"Gym speaker","gym","Algo 8198",1,94,[40,41,43,32]),
+  SPK(44,"Eagles Nest (concessions)","gym","Algo 8198",1,94,[40,41,43,32]),
+  SPK(47,"HS Gaga speaker","out","Algo 8198",0,94,[40,41,71]),
+  SPK(60,"6th Grade speaker (MOD1)","mod1","Algo 8198",1,94,[60,41,42,33,34]),
+  SPK(61,"MOD2 speaker","mod2","Algo 8198",1,94,[40,41,42,50,32])
+];
+
+const TPL={
+  "High School X3SG":[99, 97, 98, 94, 40, 41, 42, 32],
+  "Elementary X3SG":[99, 97, 98, 93, 30, 31, 33, 34],
+  "Kindergarden X3SG":[99, 97, 98, 92, 20, 21, 33],
+  "High School X210i":[99, 97, 98, 94, 40, 41, 42, 32],
+  "6th Grade X3SG":[99, 97, 98, 94, 60, 41, 42, 33, 34],
+  "Kindergarden X210":[99, 97, 98, 92],
+  "Elementary X210":[99, 97, 98, 93, 30, 31, 33, 34],
+  "H2-STAFF":[99, 97, 98, 94, 40, 41, 42, 32],
+  "High School V64":[99, 97, 98, 94, 40, 41, 42, 32],
+  "Elementary V64":[99, 97, 98, 93, 30, 31, 33, 34],
+  "High School V65":[99, 97, 98, 94, 40, 41, 42, 32],
+  "Elementary V65":[99, 97, 98, 93, 30, 31, 33, 34],
+  "HS NO PAGING":[99, 97, 98, 94],
+  "NO PAGING X3SG":[99, 97, 98, 94],
+  "HS V64 NO PAGING":[99, 97, 98, 94],
+  "5th Grade X3SG":[99, 97, 98, 92, 20, 22, 31, 33, 34],
+  "5th Grade V64":[99, 97, 98, 92, 20, 22, 31, 33, 34],
+  "MOD2 X3SG":[99, 97, 98, 94, 50, 40, 41, 42, 32],
+  "5th Grade & Library X3SG":[99, 97, 98, 92, 20, 22, 30, 31, 33, 34],
+  "EL NO PAGING X3SG":[99, 97, 98, 93]
+};
+// [ext, name, model, template, area, ipLastOctet or "", registered]  (live from Yeastar P560, Oct 11 2026)
+const P=[
+ ["2000", "Jennifer Holbrook", "X210i", "Kindergarden X210", "kgup", "", 1],
+ ["2100", "Dreama Wilson", "X3SG", "Kindergarden X3SG", "kgup", "", 1],
+ ["2101", "Jenn Cain", "X3SG", "Kindergarden X3SG", "kgup", "", 1],
+ ["2102", "Jessica Coomes", "X3SG", "Kindergarden X3SG", "kgup", "", 1],
+ ["2103", "Amy Foley", "X3SG", "Kindergarden X3SG", "kgup", "", 1],
+ ["2200", "Juli Walter", "X3SG", "5th Grade & Library X3SG", "kgdn", "", 1],
+ ["2201", "Beth Bueche", "V64", "5th Grade V64", "kgdn", "", 1],
+ ["2202", "Carol Dombeck (Library)", "X3SG", "5th Grade & Library X3SG", "kgdn", "", 1],
+ ["1000", "Jonathan Peters", "X210i", "Elementary X210", "el", "", 1],
+ ["1500", "Adam Eshleman", "V64", "Elementary V64", "el", "", 1],
+ ["1501", "RBC Nursery 1", "X3SG", "Elementary X3SG", "el", "", 0],
+ ["1502", "RBC Nursery 2", "X3SG", "Elementary X3SG", "el", "", 0],
+ ["1503", "RBC Conference Room", "X3SG", "Elementary X3SG", "el", "", 1],
+ ["3000", "Elementary Reception", "X210i", "Elementary X210", "el", "", 0],
+ ["3001", "Nurse", "X210i", "Elementary X210", "el", "", 1],
+ ["3002", "Nurse Student Phone", "X3SG", "EL NO PAGING X3SG", "el", "", 1],
+ ["3102", "Angela Burge", "X3SG", "Elementary X3SG", "el", "", 1],
+ ["3105", "Theresa Schmidt", "X3SG", "Elementary X3SG", "el", "", 1],
+ ["3106", "Devon Reed", "X3SG", "Elementary X3SG", "el", "", 1],
+ ["3107", "Andri-Ellen Peters", "X3SG", "Elementary X3SG", "el", "", 1],
+ ["3200", "Marie Cronin", "X3SG", "Elementary X3SG", "el", "", 1],
+ ["3201", "Jody Renwick", "X3SG", "Elementary X3SG", "el", "", 1],
+ ["3202", "Melanie Ward", "X3SG", "Elementary X3SG", "el", "", 1],
+ ["3203", "Stephanie Boyd", "X3SG", "Elementary X3SG", "el", "", 1],
+ ["3204", "Erin Thate", "X3SG", "Elementary X3SG", "el", "", 1],
+ ["3205", "Katie Pace", "X3SG", "Elementary X3SG", "el", "", 1],
+ ["3207", "Michelle Scheidt", "X3SG", "Elementary X3SG", "el", "", 1],
+ ["3208", "Debra Perry", "X3SG", "Elementary X3SG", "el", "", 1],
+ ["3209", "Abby Dombeck", "X3SG", "Elementary X3SG", "el", "", 1],
+ ["3210", "Cortney Bandy", "X3SG", "Elementary X3SG", "el", "", 1],
+ ["3211", "Ruth Peters", "X3SG", "Elementary X3SG", "el", "", 1],
+ ["3212", "Becca Jenkins", "X3SG", "Elementary X3SG", "el", "", 1],
+ ["3213", "EL Lunch Room", "X3SG", "Elementary X3SG", "el", "", 1],
+ ["3214", "Lydia Bachorik", "X3SG", "Elementary X3SG", "el", "", 1],
+ ["3300", "Wes Peters", "X3SG", "Elementary X3SG", "el", "", 1],
+ ["3500", "Shane Burge", "V65", "Elementary V65", "el", "", 1],
+ ["3501", "Coreen Forloine", "V65", "Elementary V65", "el", "", 1],
+ ["—", "Unassigned", "X3SG", "Elementary X3SG", "el", "", 0],
+ ["—", "Unassigned", "X3SG", "Elementary X3SG", "el", "", 0],
+ ["4600", "Katie Ryan", "X3SG", "6th Grade X3SG", "mod1", "", 1],
+ ["4601", "Jenny Kline", "X3SG", "6th Grade X3SG", "mod1", "", 1],
+ ["4602", "Lauren Hayden", "X3SG", "MOD2 X3SG", "mod2", "", 1],
+ ["4603", "Sheri Diamond", "X3SG", "MOD2 X3SG", "mod2", "", 1],
+ ["4000", "Lisa Cope", "X210i", "HS NO PAGING", "hs", "", 1],
+ ["4001", "Sarah Bahr", "X210i", "HS NO PAGING", "hs", "", 1],
+ ["4002", "Becky Lucker", "V65", "HS NO PAGING", "hs", "", 1],
+ ["4100", "Ben Galluzzo", "X3SG", "High School X3SG", "hs", "", 1],
+ ["4101", "Lauryn Peters", "X3SG", "High School X3SG", "hs", "", 1],
+ ["4102", "Ada Stambaugh", "X3SG", "High School X3SG", "hs", "", 1],
+ ["4103", "Penny McKnight", "X3SG", "High School X3SG", "hs", "", 1],
+ ["4104", "Patti Ballard", "X3SG", "High School X3SG", "hs", "", 1],
+ ["4105", "Sonya Gallion", "X3SG", "High School X3SG", "hs", "", 1],
+ ["4106", "Sarah Simon", "X3SG", "High School X3SG", "hs", "", 1],
+ ["4107", "Ann-Marie May", "X3SG", "High School X3SG", "hs", "", 1],
+ ["4108", "Jerry Slonaker", "X3SG", "High School X3SG", "hs", "", 1],
+ ["4109", "Jennifer Wilkinson", "X3SG", "High School X3SG", "hs", "", 1],
+ ["4110", "Lydia Olinger", "X3SG", "High School X3SG", "hs", "", 1],
+ ["4111", "John Slack", "X3SG", "High School X3SG", "hs", "", 1],
+ ["4112", "Nadia Dardon", "X3SG", "High School X3SG", "hs", "", 1],
+ ["4150", "Kate Minton", "X3SG", "High School X3SG", "hs", "", 1],
+ ["4151", "HS Teachers Lounge", "X3SG", "High School X3SG", "hs", "", 0],
+ ["4152", "HOMEC Room", "X3SG", "High School X3SG", "hs", "", 1],
+ ["4153", "HS Staff Bathroom", "H2U", "H2-STAFF", "hs", "", 1],
+ ["4204", "Lindsay Lindner", "X3SG", "High School X3SG", "hs", "", 1],
+ ["4500", "Bryan Wilson", "V64", "HS V64 NO PAGING", "hs", "", 1],
+ ["4501", "HS Conference Room", "X3SG", "NO PAGING X3SG", "hs", "", 1],
+ ["4502", "Bill Peters", "V65", "HS NO PAGING", "hs", "", 1],
+ ["4503", "Justin Polun", "V64", "HS V64 NO PAGING", "hs", "", 1],
+ ["4504", "Chelsea Wathne", "X3SG", "High School X3SG", "hs", "", 1],
+ ["4506", "High School Student", "X3SG", "NO PAGING X3SG", "hs", "", 1],
+ ["4507", "Susie Williams", "V65", "High School V65", "hs", "", 1]
+];
+const PHONES=P.map(r=>({kind:"Phone",ext:r[0],name:r[1],model:"Fanvil "+r[2],tpl:r[3],zones:TPL[r[3]],area:r[4],ip:(!PUBLIC&&r[5])?"":"",online:!!r[6],group:"Phones · "+r[3]}));
+const DEVICES=[...SPEAKERS,...PHONES];
+
+const NOTES=[
+  {when:z=>z===97,t:"<b>HS Lobby (.40) and HS Gaga (.47)</b> are left off zone 97 on purpose because both also drive outdoor horns. Use 99 Campus SOS when outdoor areas need to hear it."},
+  {when:z=>z===38,t:"<b>Group 38</b> is used by the EL server's Band Start/End bells, but no speaker or phone listens to it. The plan is to move those bells to zone 32 on the HS server."},
+  {when:z=>z===70,t:"<b>Group 70</b> is marked unused on all three servers. Nothing listens to it."}
+];
+
+let state={server:"hs",zone:99,view:"area"};
+try{const s=JSON.parse(localStorage.getItem("zt")||"{}");if(s.server)state.server=s.server;if(s.view)state.view=s.view}catch(e){}
+const save=()=>{try{localStorage.setItem("zt",JSON.stringify({server:state.server,view:state.view}))}catch(e){}};
+
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const zname=z=>ZONES[z]?ZONES[z].n:"Not configured";
+const isSos=z=>ZONES[z]&&ZONES[z].k==="sos";
+
+function drawServers(){
+  $("servers").innerHTML=SERVERS.map(s=>`<button type="button" data-s="${s.id}" aria-pressed="${s.id===state.server}">${PUBLIC?s.label:s.label+" · "+s.short}</button>`).join("");
+  $("servers").querySelectorAll("button").forEach(b=>b.onclick=()=>{state.server=b.dataset.s;save();render()});
+}
+function drawKeypad(){
+  $("keypad").innerHTML=KEY_ORDER.map(z=>{const k=ZONES[z].k||"";return `<button type="button" class="key ${k}" data-z="${z}" aria-pressed="${z===state.zone}"><span class="n">${z}</span><span class="nm">${esc(ZONES[z].n)}</span></button>`}).join("");
+  $("keypad").querySelectorAll(".key").forEach(b=>b.onclick=()=>{state.zone=+b.dataset.z;$("otherZone").value="";render()});
+}
+$("otherZone").addEventListener("input",e=>{const v=parseInt(e.target.value,10);if(!isNaN(v)&&v>=0&&v<=99){state.zone=v;render()}});
+
+function zoneChips(d){
+  return `<div class="zchips">${d.zones.map((z,i)=>{const sl=d.slots?`<i>${d.slots[i]}</i>`:"";return `<span class="zc ${isSos(z)?"sos":""} ${z===state.zone?"on":""}" title="${esc(zname(z))}">${sl}${z}</span>`}).join("")}</div>`;
+}
+function devRow(d,hit){
+  const title=d.kind==="Phone"?`${esc(d.ext)} · ${esc(d.name)}`:esc(d.name);
+  const sub=d.kind==="Phone"?`${esc(d.model)} · ${esc(d.tpl)}`:(PUBLIC?esc(d.model):`${esc(d.model)} · ${esc(d.ip)}`);
+  let pill="";
+  if(!d.online)pill=`<span class="pill p-warn">Unregistered</span>`;
+  else if(hit&&d.kind==="Speaker")pill=`<span class="pill p-voice">Plays</span>`;
+  else if(hit)pill=`<span class="pill p-voice">Auto-answers</span>`;
+  const slot=hit?d.zones.indexOf(state.zone):-1;
+  const slotTxt=slot<0?"":d.slots?`${d.slots[slot]} slot`:`Multicast slot ${slot+1} of ${d.zones.length}`;
+  const kv=d.kind==="Phone"
+    ?`<dt>Extension</dt><dd>${esc(d.ext)}</dd><dt>Template</dt><dd>${esc(d.tpl)}</dd>${PUBLIC?"":`<dt>IP</dt><dd class="mono">${d.ip||"No address (offline)"}</dd>`}`
+    :`${PUBLIC?"":`<dt>IP</dt><dd class="mono">${esc(d.ip)}</dd>`}<dt>Model</dt><dd>${esc(d.model)}</dd>`;
+  return `<details class="dev"><summary><span class="dn"><span class="t">${title}</span><span class="s">${sub}</span></span>${pill}</summary>
+  <div class="dbody"><dl class="kv">${kv}<dt>This zone</dt><dd>${hit?"Listens"+(slotTxt?" · "+slotTxt:""):"Not subscribed"}</dd></dl>
+  <div class="label">All zones this device listens to</div>${zoneChips(d)}</div></details>`;
+}
+function groupList(list,hit){
+  if(!list.length)return `<div class="empty">${hit?"No devices are subscribed to this zone.":"Every device hears this zone."}</div>`;
+  const groups=[];
+  if(state.view==="area"){
+    AREAS.forEach(a=>{const ds=list.filter(d=>d.area===a.id);if(ds.length)groups.push({t:a.n,ds})});
+  }else{
+    const keys=[...new Set(DEVICES.map(d=>d.group))];
+    keys.forEach(k=>{const ds=list.filter(d=>d.group===k);if(ds.length)groups.push({t:k,ds})});
+  }
+  return groups.map(g=>{const sp=g.ds.filter(d=>d.kind==="Speaker").length,ph=g.ds.length-sp;
+    const c=[sp?`${sp} speaker${sp>1?"s":""}`:"",ph?`${ph} phone${ph>1?"s":""}`:""].filter(Boolean).join(" · ");
+    return `<details class="grp"><summary><span class="gt">${esc(g.t)}</span><span class="gc">${c}</span></summary><div class="devs">${g.ds.map(d=>devRow(d,hit)).join("")}</div></details>`}).join("");
+}
+
+function render(){
+  drawServers();
+  $("keypad").querySelectorAll(".key").forEach(b=>b.setAttribute("aria-pressed",+b.dataset.z===state.zone));
+  document.querySelectorAll("#viewSeg button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.v===state.view));
+  const z=state.zone,srv=SERVERS.find(s=>s.id===state.server);
+  const hits=DEVICES.filter(d=>d.zones.includes(z)),miss=DEVICES.filter(d=>!d.zones.includes(z));
+  const hs=hits.filter(d=>d.kind==="Speaker").length,hp=hits.filter(d=>d.kind==="Phone"),hpOn=hp.filter(d=>d.online).length;
+  const method=z===98?`<span class="pill p-rec">Pre-recorded · SecurePerimeter.wav</span>`:hits.length?`<span class="pill p-voice">Open voice · speak after the tone</span>`:`<span class="pill p-muted">No audio reaches any device</span>`;
+  const kind=isSos(z)?`<span class="pill p-sos">Emergency</span>`:"";
+  $("result").innerHTML=`<div class="bigzone">${z}</div>
+   <div class="rmeta"><div class="rname">${esc(zname(z))}</div>
+   <div class="row">${method}${kind}</div>
+   <div class="mono" style="color:var(--muted)">${PUBLIC?`Dialed on the ${srv.label}`:`Dialed on ${srv.label} ${srv.short} (${srv.ip}) → `}</div></div>
+   <div class="stats">
+    <div class="stat"><b>${hs}</b><span>of ${SPEAKERS.length} speakers</span></div>
+    <div class="stat"><b>${hp.length}</b><span>of ${PHONES.length} phones${hp.length!==hpOn?` (${hp.length-hpOn} unregistered)`:""}</span></div>
+    <div class="stat"><b>${miss.length}</b><span>devices stay quiet</span></div></div>`;
+  $("areas").innerHTML=AREAS.map(a=>{const all=DEVICES.filter(d=>d.area===a.id),h=all.filter(d=>d.zones.includes(z)).length;
+    const miss=all.filter(d=>!d.zones.includes(z)), planned=h>0&&miss.length>0&&miss.every(d=>byDesign(d,z));
+    const label=d=>d.kind==="Phone"?d.ext:d.name.replace(/ speaker$/,"");
+    const list=ms=>ms.length<=3?ms.map(label).join(", "):`${ms.slice(0,2).map(label).join(", ")} +${ms.length-2} more`;
+    const cls=h===0?"none":(h===all.length||planned)?"all":"some";
+    const txt=h===0?(miss.every(d=>byDesign(d,z))?"Quiet · left off on purpose":"Quiet"):h===all.length?`<b>All ${all.length}</b> device${all.length>1?"s":""}`
+      :planned?`<b>${h} of ${all.length}</b> devices<br>Left off on purpose: ${esc(list(miss))}`
+      :`<b>${h} of ${all.length}</b> devices<br>Not: ${esc(list(miss))}`;
+    return `<div class="area ${cls} ${a.focus?"focus":""}">${a.focus?'<span class="star">Check closely</span>':""}<span class="an">${esc(a.n)}</span>${a.d?`<span class="as">${esc(a.d)}</span>`:""}<span class="as">${txt}</span></div>`}).join("");
+  $("hits").innerHTML=groupList(hits,true);
+  $("misses").innerHTML=groupList(miss,false);
+  $("hitCount").textContent=`${hits.length} devices`;
+  $("missCount").textContent=`${miss.length} devices`;
+  $("notes").innerHTML=NOTES.filter(n=>n.when(z)).map(n=>`<div class="note">${n.t}</div>`).join("");
+  if(typeof drawTemplates==="function"&&$("tplTable")) drawTemplates();
+}
+document.querySelectorAll("#viewSeg button").forEach(b=>b.onclick=()=>{state.view=b.dataset.v;save();render()});
+$("expandAll").onclick=()=>document.querySelectorAll("#hits details,#misses details").forEach(d=>d.open=true);
+$("collapseAll").onclick=()=>document.querySelectorAll("#hits details,#misses details").forEach(d=>d.open=false);
+// Devices that skip a zone on purpose: no-paging phones and the KG X210 (SOS zones only) skip daily zones; HS Lobby and HS Gaga skip 97 because they feed outdoor horns.
+function byDesign(d,z){
+  if(d.kind==="Phone"&&z<90&&(/NO PAGING/.test(d.tpl)||d.tpl==="Kindergarden X210")) return true;
+  if(z===97&&(d.id==="spk40"||d.id==="spk47")) return true;
+  return false;
+}
+function drawTemplates(){
+  const rows=Object.entries(TPL).map(([name,z])=>{const ph=PHONES.filter(p=>p.tpl===name);
+    return `<tr><td>${esc(name)}</td><td>${zoneChipsList(z)}</td><td class="n">${ph.length?ph.map(p=>esc(p.ext)).join(", "):"No phones"}</td></tr>`}).join("");
+  $("tplTable").innerHTML=`<thead><tr><th>Template</th><th>Zones, in priority order</th><th>Phones</th></tr></thead><tbody>${rows}</tbody>`;
+  $("tplCount").textContent=Object.keys(TPL).length+" templates";
+}
+function zoneChipsList(z){return `<div class="zchips">${z.map(n=>`<span class="zc ${isSos(n)?"sos":""} ${n===state.zone?"on":""}" title="${esc(zname(n))}">${n}</span>`).join("")}</div>`}
+drawKeypad();render();
+</script>
+
+</body>
+</html>
