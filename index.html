@@ -211,9 +211,9 @@ const ZONES={
   30:{n:"EL (1st–4th)"},31:{n:"1st–5th Grade"},32:{n:"HS, Mod & Band Room"},33:{n:"K4–6th Grade"},34:{n:"1st–6th Grade"},
   40:{n:"HS & Mod"},41:{n:"HS, Mod & 6th"},42:{n:"HS, Mod & 6th – No Gym"},43:{n:"Gym"},
   50:{n:"Mod"},60:{n:"6th Grade"},71:{n:"All Campus Outdoor"},
-  70:{n:"UNUSED – Campus Indoor",k:"dead"},38:{n:"Unnamed (EL band bells)",k:"dead"}
+  70:{n:"UNUSED – Campus Indoor",k:"dead"},38:{n:"Unnamed (EL band bells)",k:"dead"},88:{n:"Radio Test",k:"dead"}
 };
-const KEY_ORDER=[99,97,98,94,93,92,20,21,22,30,31,33,34,40,41,42,43,32,50,60,71,38,70];
+const KEY_ORDER=[99,97,98,94,93,92,20,21,22,30,31,33,34,40,41,42,43,32,50,60,71,38,88,70];
 
 const AREAS=[
   {id:"kgup",n:"KG building · upstairs",d:"K4 & K5",focus:true},
@@ -359,7 +359,8 @@ const DEVICES=[...SPEAKERS,...PHONES];
 const NOTES=[
   {when:z=>z===97,t:"<b>HS Lobby (.40) and HS Gaga (.47)</b> are left off zone 97 on purpose because both also drive outdoor horns. Use 99 Campus SOS when outdoor areas need to hear it."},
   {when:z=>z===38,t:"<b>Group 38</b> is used by the EL server's Band Start/End bells, but no speaker or phone listens to it. The plan is to move those bells into the HS server's bell schedule."},
-  {when:z=>z===70,t:"<b>Group 70</b> is marked unused on all three servers. Nothing listens to it."}
+  {when:z=>z===70,t:"<b>Group 70</b> is marked unused on all three servers. Nothing listens to it."},
+  {when:z=>z===88,t:"<b>Group 88, Radio Test</b>, reaches no speakers or phones. Only the walkie-talkie radio gateway listens, so it's for testing the walkies without paging a building."}
 ];
 
 let state={server:"hs",zone:99,view:"area"};
