@@ -141,7 +141,7 @@ footer{font-size:.8rem;color:var(--muted);display:grid;gap:4px}
       <h1>Paging Zone Tester</h1>
       <p class="sub">Pick a paging server and a zone to see exactly which speakers and phones should go off, and which should stay quiet.</p>
     </div>
-    <span class="label">Verified Oct 11, 2026</span>
+    <span class="label">Verified Oct 13, 2026</span>
   </header>
 
   <section class="panel controls" aria-label="Choose server and zone">
@@ -192,7 +192,7 @@ footer{font-size:.8rem;color:var(--muted);display:grid;gap:4px}
 
   <footer>
     <div>All three paging servers carry identical zones, so a zone reaches the same devices no matter which server you dial it from.</div>
-    <div>Speaker config read from each Algo's Advanced Multicast page; phone list, registration status and template zones pulled live from the Yeastar P560 on Oct 11, 2026. Background music is separate from paging and not shown.</div>
+    <div>Speaker config read from each Algo's Advanced Multicast page; phone list, registration status and template zones pulled live from the Yeastar P560 on Oct 13, 2026. Background music is separate from paging and not shown.</div>
   </footer>
 </div>
 
@@ -205,15 +205,16 @@ const SERVERS=[
   {id:"hs",label:"HS server",short:"",ip:""}
 ];
 const ZONES={
-  99:{n:"Campus SOS",k:"sos"},97:{n:"Indoor Campus SOS",k:"sos"},98:{n:"Secure Perimeter",k:"rec"},
+  99:{n:"Campus SOS",k:"sos"},96:{n:"Campus SOS Indoor",k:"sos"},97:{n:"LOCKDOWN",k:"sos"},98:{n:"SECURE",k:"rec"},
   94:{n:"HS SOS",k:"sos"},93:{n:"EL SOS",k:"sos"},92:{n:"KG SOS",k:"sos"},
   20:{n:"KG Building (K4–5th)"},21:{n:"K4 & K5"},22:{n:"5th Grade"},
   30:{n:"EL (1st–4th)"},31:{n:"1st–5th Grade"},32:{n:"HS, Mod & Band Room"},33:{n:"K4–6th Grade"},34:{n:"1st–6th Grade"},
   40:{n:"HS & Mod"},41:{n:"HS, Mod & 6th"},42:{n:"HS, Mod & 6th – No Gym"},43:{n:"Gym"},
-  50:{n:"Mod"},60:{n:"6th Grade"},71:{n:"All Campus Outdoor"},
-  70:{n:"UNUSED – Campus Indoor",k:"dead"},38:{n:"Unnamed (EL band bells)",k:"dead"},88:{n:"Radio Test",k:"dead"}
+  50:{n:"Mod"},60:{n:"6th Grade"},
+  38:{n:"EL band bells"},
+  71:{n:"UNUSED – Campus Outdoor",k:"dead"},70:{n:"UNUSED – Campus Indoor",k:"dead"},88:{n:"Radio Test",k:"dead"}
 };
-const KEY_ORDER=[99,97,98,94,93,92,20,21,22,30,31,33,34,40,41,42,43,32,50,60,71,38,88,70];
+const KEY_ORDER=[99,96,97,98,94,93,92,20,21,22,30,31,33,34,40,41,42,43,32,50,60,38,88,71,70];
 
 const AREAS=[
   {id:"kgup",n:"KG building · upstairs",d:"K4 & K5",focus:true},
@@ -228,18 +229,19 @@ const AREAS=[
 ];
 
 // Speakers: zones in Algo slot order (Priority, All Call, Zone 1, Zones 2-6)
-// Algo slot layout: Priority=99, All Call=97 (blank on Lobby/Gaga), Z1=98, Z2=building SOS, Z3-Z6 daily, *10 overflow
+// Algo slot layout (Oct 13, 2026): Priority=99, All Call=96 (blank on the outdoor horns Lobby/Gaga),
+// Z1=97 LOCKDOWN, Z2=98 SECURE, Z3=building SOS, Z4-Z6 then *10/*11 daily
 const SPK=(ip,name,area,model,all,sos,d)=>{
   const zones=[99],slots=["Priority"];
-  if(all){zones.push(97);slots.push("All Call")}
-  zones.push(98,sos);slots.push("Z1","Z2");
-  d.forEach((z,i)=>{zones.push(z);slots.push(i<4?"Z"+(i+3):"*10")});
+  if(all){zones.push(96);slots.push("All Call")}
+  zones.push(97,98,sos);slots.push("Z1","Z2","Z3");
+  d.forEach((z,i)=>{zones.push(z);slots.push(i<3?"Z"+(i+4):(i===3?"*10":"*11"))});
   return {kind:"Speaker",id:"spk"+ip,ip:PUBLIC?"":"",name,area,model,zones,slots,online:true,group:"Algo speakers"};
 };
 const SPEAKERS=[
   SPK(20,"5th Grade speaker","kgdn","Algo 8198",1,92,[22,31,20,33,34]),
   SPK(21,"KG speaker","kgup","Algo 8198",1,92,[20,21,33]),
-  SPK(30,"EL speaker 1","el","Algo 8198",1,93,[30,31,33,34]),
+  SPK(30,"EL speaker 1","el","Algo 8198",1,93,[30,31,33,34,38]),
   SPK(31,"EL speaker 2","el","Algo 8198",1,93,[30,31,33,34]),
   SPK(33,"EL speaker 3","el","Algo 8198",1,93,[30,31,33,34]),
   SPK(32,"Band Room speaker","band","Algo 8198",1,93,[32]),
@@ -250,34 +252,34 @@ const SPEAKERS=[
   SPK(46,"HS speaker 4","hs","Algo 8198",1,94,[40,41,42,32]),
   SPK(43,"Gym speaker","gym","Algo 8198",1,94,[40,41,43,32]),
   SPK(44,"Eagles Nest (concessions)","gym","Algo 8198",1,94,[40,41,43,32]),
-  SPK(47,"HS Gaga speaker","out","Algo 8198",0,94,[40,41,71]),
+  SPK(47,"HS Gaga speaker","out","Algo 8198",0,94,[40,41]),
   SPK(60,"6th Grade speaker (MOD1)","mod1","Algo 8198",1,94,[60,41,42,33,34]),
   SPK(61,"MOD2 speaker","mod2","Algo 8198",1,94,[40,41,42,50,32])
 ];
 
 const TPL={
-  "High School X3SG":[99, 97, 98, 94, 40, 41, 42, 32],
-  "Elementary X3SG":[99, 97, 98, 93, 30, 31, 33, 34],
-  "Kindergarden X3SG":[99, 97, 98, 92, 20, 21, 33],
-  "High School X210i":[99, 97, 98, 94, 40, 41, 42, 32],
-  "6th Grade X3SG":[99, 97, 98, 94, 60, 41, 42, 33, 34],
-  "Kindergarden X210":[99, 97, 98, 92],
-  "Elementary X210":[99, 97, 98, 93, 30, 31, 33, 34],
-  "H2-STAFF":[99, 97, 98, 94, 40, 41, 42, 32],
-  "High School V64":[99, 97, 98, 94, 40, 41, 42, 32],
-  "Elementary V64":[99, 97, 98, 93, 30, 31, 33, 34],
-  "High School V65":[99, 97, 98, 94, 40, 41, 42, 32],
-  "Elementary V65":[99, 97, 98, 93, 30, 31, 33, 34],
-  "HS NO PAGING":[99, 97, 98, 94],
-  "NO PAGING X3SG":[99, 97, 98, 94],
-  "HS V64 NO PAGING":[99, 97, 98, 94],
-  "5th Grade X3SG":[99, 97, 98, 92, 20, 22, 31, 33, 34],
-  "5th Grade V64":[99, 97, 98, 92, 20, 22, 31, 33, 34],
-  "MOD2 X3SG":[99, 97, 98, 94, 50, 40, 41, 42, 32],
-  "5th Grade & Library X3SG":[99, 97, 98, 92, 20, 22, 30, 31, 33, 34],
-  "EL NO PAGING X3SG":[99, 97, 98, 93],
-  "RBC X210 NO PAGING":[99, 97, 98, 93],
-  "RBC V64 NO PAGING":[99, 97, 98, 93]
+  "High School X3SG":[99, 96, 97, 98,94, 40, 41, 42, 32],
+  "Elementary X3SG":[99, 96, 97, 98,93, 30, 31, 33, 34],
+  "Kindergarden X3SG":[99, 96, 97, 98,92, 20, 21, 33],
+  "High School X210i":[99, 96, 97, 98,94, 40, 41, 42, 32],
+  "6th Grade X3SG":[99, 96, 97, 98,94, 60, 41, 42, 33, 34],
+  "Kindergarden X210":[99, 96, 97, 98,92],
+  "Elementary X210":[99, 96, 97, 98,93, 30, 31, 33, 34],
+  "H2-STAFF":[99, 96, 97, 98,94, 40, 41, 42, 32],
+  "High School V64":[99, 96, 97, 98,94, 40, 41, 42, 32],
+  "Elementary V64":[99, 96, 97, 98,93, 30, 31, 33, 34],
+  "High School V65":[99, 96, 97, 98,94, 40, 41, 42, 32],
+  "Elementary V65":[99, 96, 97, 98,93, 30, 31, 33, 34],
+  "HS NO PAGING":[99, 96, 97, 98,94],
+  "NO PAGING X3SG":[99, 96, 97, 98,94],
+  "HS V64 NO PAGING":[99, 96, 97, 98,94],
+  "5th Grade X3SG":[99, 96, 97, 98,92, 20, 22, 31, 33, 34],
+  "5th Grade V64":[99, 96, 97, 98,92, 20, 22, 31, 33, 34],
+  "MOD2 X3SG":[99, 96, 97, 98,94, 50, 40, 41, 42, 32],
+  "5th Grade & Library X3SG":[99, 96, 97, 98, 92, 20, 22, 31, 33, 34],
+  "EL NO PAGING X3SG":[99, 96, 97, 98,93],
+  "RBC X210 NO PAGING":[99, 96, 97, 98,93],
+  "RBC V64 NO PAGING":[99, 96, 97, 98,93]
 };
 // [ext, name, model, template, area, ipLastOctet or "", registered]  (live from Yeastar P560, Oct 11 2026)
 const P=[
@@ -357,8 +359,11 @@ const PHONES=P.map(r=>({kind:"Phone",ext:r[0],name:r[1],model:"Fanvil "+r[2],tpl
 const DEVICES=[...SPEAKERS,...PHONES];
 
 const NOTES=[
-  {when:z=>z===97,t:"<b>HS Lobby (.40) and HS Gaga (.47)</b> are left off zone 97 on purpose because both also drive outdoor horns. Use 99 Campus SOS when outdoor areas need to hear it."},
-  {when:z=>z===38,t:"<b>Group 38</b> is used by the EL server's Band Start/End bells, but no speaker or phone listens to it. The plan is to move those bells into the HS server's bell schedule."},
+  {when:z=>z===96,t:"<b>HS Lobby (.40) and HS Gaga (.47)</b> are left off zone 96 on purpose because both also drive outdoor horns. Use 99 Campus SOS when outdoor areas need to hear it."},
+  {when:z=>z===97,t:"<b>LOCKDOWN</b> will play a pre-recorded message (\"Lockdown! Locks, lights, out of sight.\") three times, everywhere including the outdoor horns. Until the recording is installed, it works as open voice."},
+  {when:z=>z===98,t:"<b>SECURE</b> plays a pre-recorded message three times, then stops, everywhere including the outdoor horns. The SRP wording (\"Secure! Get inside. Lock outside doors.\") replaces the current Secure Perimeter recording when it's ready."},
+  {when:z=>z===38,t:"<b>Group 38</b> carries the EL server's Band Start/End bells. One Elementary speaker plays them."},
+  {when:z=>z===71,t:"<b>Group 71</b> was retired on Oct 13, 2026. Nothing listens to it."},
   {when:z=>z===70,t:"<b>Group 70</b> is marked unused on all three servers. Nothing listens to it."},
   {when:z=>z===88,t:"<b>Group 88, Radio Test</b>, reaches no speakers or phones. Only the walkie-talkie radio gateway listens, so it's for testing the walkies without paging a building."}
 ];
@@ -422,7 +427,7 @@ function render(){
   const z=state.zone,srv=SERVERS.find(s=>s.id===state.server);
   const hits=DEVICES.filter(d=>d.zones.includes(z)),miss=DEVICES.filter(d=>!d.zones.includes(z));
   const hs=hits.filter(d=>d.kind==="Speaker").length,hp=hits.filter(d=>d.kind==="Phone"),hpOn=hp.filter(d=>d.online).length;
-  const method=z===98?`<span class="pill p-rec">Pre-recorded · SecurePerimeter.wav</span>`:hits.length?`<span class="pill p-voice">Open voice · speak after the tone</span>`:`<span class="pill p-muted">No audio reaches any device</span>`;
+  const method=z===98?`<span class="pill p-rec">Pre-recorded · plays 3 times</span>`:hits.length?`<span class="pill p-voice">Open voice · speak after the tone</span>`:`<span class="pill p-muted">No audio reaches any device</span>`;
   const kind=isSos(z)?`<span class="pill p-sos">Emergency</span>`:"";
   $("result").innerHTML=`<div class="bigzone">${z}</div>
    <div class="rmeta"><div class="rname">${esc(zname(z))}</div>
@@ -451,10 +456,11 @@ function render(){
 document.querySelectorAll("#viewSeg button").forEach(b=>b.onclick=()=>{state.view=b.dataset.v;save();render()});
 $("expandAll").onclick=()=>document.querySelectorAll("#hits details,#misses details").forEach(d=>d.open=true);
 $("collapseAll").onclick=()=>document.querySelectorAll("#hits details,#misses details").forEach(d=>d.open=false);
-// Devices that skip a zone on purpose: no-paging phones and the KG X210 (SOS zones only) skip daily zones; HS Lobby and HS Gaga skip 97 because they feed outdoor horns.
+// Devices that skip a zone on purpose: no-paging phones and the KG X210 (SOS zones only) skip daily zones; HS Lobby and HS Gaga skip 96 because they feed outdoor horns.
 function byDesign(d,z){
   if(d.kind==="Phone"&&z<90&&(/NO PAGING/.test(d.tpl)||d.tpl==="Kindergarden X210")) return true;
-  if(z===97&&(d.id==="spk40"||d.id==="spk47")) return true;
+  if(z===96&&(d.id==="spk40"||d.id==="spk47")) return true;
+  if(z===38&&d.id!=="spk30") return true;   // EL band bells play on only one EL speaker
   return false;
 }
 function drawTemplates(){
